@@ -8,8 +8,9 @@
 driver = ctypes.CDLL(r'.\MouseControl.dll')
 ```
 <br/>
-### 文件使用示例
 
+### 文件使用示例
+<br/>
 **MouseControl.dll调用示例**
 
 ```C++
@@ -245,7 +246,7 @@ void FREE() //釋放
 
 ### 贝塞尔移动示例
 **一阶贝塞尔移动**
-```
+```Python
 import random
 import time
 import ctypes
@@ -327,7 +328,7 @@ while True:
 ```
 
 **二阶贝塞尔移动示例**
-```
+```Python
 import time
 import ctypes
 import matplotlib.pyplot as plt
