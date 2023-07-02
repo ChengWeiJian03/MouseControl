@@ -1,6 +1,9 @@
 # 鼠标调用说明
 
-### 注：MouseControl无水印，其他有水印，MouseControl误差较大，绝对移动误差在20左右，相对移动误差在1-2，不建议使用
+**此为借助dll文件来调用罗技鼠标驱动，以实现驱动级的键鼠调用，顺便写了贝塞尔移动，凑合凑合用吧**
+
+### 注：MouseControl无水印，其他有水印，在使用前必须在鼠标设置里，将提高鼠标精度按钮点掉，处于未选中状态，并且将鼠标灵敏度调到正中间，不然鼠标在移动会有偏移
+
 
 **Python使用DLL文件**
 
@@ -280,11 +283,11 @@ class bezer:
         t = np.linspace(0, 1, 100)
         t = np.array([t, t]).T
         self.B1 = (1 - t) * self.points[0] + t * self.points[1]
-    def absMove(self,point=(1920,1080),delay=0): #有问题，move_Abs函数写的不行，定位不准
+    def absMove(self,point=(1920,1080),delay=0): 
         start = pyautogui.position()
         self.getPoint(start, point)
         for x, y in zip(self.B1[:, 0], self.B1[:, 1]):
-            self.driver.move_Abs(int(x)+4, int(y)+8) # 加了一点定位补偿
+            self.driver.move_Abs(int(x), int(y))
             time.sleep(delay)
     def eliminatingErrors(self,diff_arr):
         sum_array = np.round(self.sum_decimal_places(np.abs(diff_arr), 5))
@@ -300,7 +303,7 @@ class bezer:
             wuchashuzu[:int(sum_array[1]),1] = 1
         return wuchashuzu
 
-    def rMove(self,point,delay=0): # 试过了，相对移动也有误差，误差在1-2之间，每次移动都有，积累起来还是一个很大的值
+    def rMove(self,point,delay=0):
         i = 0
         start = pyautogui.position()
         self.getPoint(start, point)
