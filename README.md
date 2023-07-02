@@ -244,7 +244,7 @@ void FREE() //釋放
 <br></br>
 
 ### 贝塞尔移动示例
-<br></br>
+</br>
 **一阶贝塞尔移动**
 ```Python
 import random
