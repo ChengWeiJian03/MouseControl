@@ -253,15 +253,83 @@ import ctypes
 import matplotlib.pyplot as plt
 import numpy as np
 import pyautogui
+import os
+try:
+    root = os.path.abspath(os.path.dirname(__file__))
+    driver = ctypes.CDLL(f'{root}/logitech.driver.dll')
+    ok = driver.device_open() == 1
+    if not ok:
+        print('Error, GHUB or LGS driver not found')
+except FileNotFoundError:
+    print(f'Error, DLL file not found')
 
+
+class Logitech:
+
+    class mouse:
+
+        """
+        code: 1:宸﹂敭, 2:涓敭, 3:鍙抽敭
+        """
+
+        @staticmethod
+        def press(code):
+            if not ok:
+                return
+            driver.mouse_down(code)
+
+        @staticmethod
+        def release(code):
+            if not ok:
+                return
+            driver.mouse_up(code)
+
+        @staticmethod
+        def click(code):
+            if not ok:
+                return
+            driver.mouse_down(code)
+            driver.mouse_up(code)
+
+        @staticmethod
+        def scroll(a):
+            if not ok:
+                return
+            driver.scroll(a)
+
+        @staticmethod
+        def move(x, y):
+            if not ok:
+                return
+            if x == 0 and y == 0:
+                return
+            driver.moveR(x, y, False)
+
+    class keyboard:
+        @staticmethod
+        def press(code):
+
+            if not ok:
+                return
+            driver.key_down(code)
+
+        @staticmethod
+        def release(code):
+            if not ok:
+                return
+            driver.key_up(code)
+
+        @staticmethod
+        def click(code):
+            if not ok:
+                return
+            driver.key_down(code)
+            driver.key_up(code)
 class bezer:
     driver = None
     points = None
     B1 = None
     t = None
-
-    def __init__(self):
-        self.driver = ctypes.CDLL(r'.\MouseControl.dll')
 
     def sum_decimal_places(self,deff_array, decimal_places=5):
         # 将数组舍入到指定的小数位数
@@ -270,13 +338,12 @@ class bezer:
         # 提取小数部分
         decimals = np.modf(rounded_arr)[0]
 
-        # 将小数部分乘以相应的权重，再进行求和
         weighted_sum = np.round(np.sum(decimals,axis=0))
 
         return weighted_sum
 
     def getPoint(self, start, end):
-        self.points = np.array([[start[0], start[1]],[end[0], end[1]]])  # 在此处修改坐标
+        self.points = np.array([[start[0], start[1]],[end[0], end[1]]])
         t = np.linspace(0, 1, 100)
         t = np.array([t, t]).T
         self.B1 = (1 - t) * self.points[0] + t * self.points[1]
@@ -284,7 +351,7 @@ class bezer:
         start = pyautogui.position()
         self.getPoint(start, point)
         for x, y in zip(self.B1[:, 0], self.B1[:, 1]):
-            self.driver.move_Abs(int(x), int(y))
+            self.driver.move_Abs(int(x), int(y)) 
             time.sleep(delay)
     def eliminatingErrors(self,diff_arr):
         sum_array = np.round(self.sum_decimal_places(np.abs(diff_arr), 5))
@@ -311,7 +378,7 @@ class bezer:
         int_arr = np.concatenate((int_arr,error))
         for x,y in zip(int_arr[:,0],int_arr[:,1]):
             i=i+1
-            self.driver.move_R(int(x),int(y))
+            Logitech.mouse.move(int(x), int(y))
 
     def show(self):
         plt.plot(self.B1[:, 0].astype(int), self.B1[:, 1].astype(int))
@@ -324,7 +391,9 @@ while True:
     # random.randint(1920),random.randint(1080)
     # bezer1.absMove((320,221),0)
     # print(pyautogui.position())
-    # bezer1.rMove((0,0))
+    bezer1.rMove((0,0))
+    print(pyautogui.position())
+
 ```
 <br></br>
 **二阶贝塞尔移动示例**
