@@ -1,9 +1,9 @@
 # 鼠标调用说明
 <br></br>
 **此为借助dll文件来调用罗技鼠标驱动，以实现驱动级的键鼠调用，顺便写了贝塞尔移动，凑合凑合用吧**
-
+<br></br>
 ### 注：MouseControl无水印，其他有水印，在使用前必须在鼠标设置里，将提高鼠标精度按钮点掉，处于未选中状态，并且将鼠标灵敏度调到正中间，不然鼠标在移动会有偏移
-
+<br></br>
 **Python使用DLL文件**
 
 ```Python
@@ -12,7 +12,7 @@ driver = ctypes.CDLL(r'.\MouseControl.dll')
 <br/>
 
 ### 文件使用示例
-<br/>
+<br></br>
 **MouseControl.dll调用示例**
 
 ```C++
@@ -31,7 +31,7 @@ driver = ctypes.CDLL(r'.\MouseControl.dll')
  // 右键松开
  click_Right_up();
 ```
-
+<br></br>
 **MouseControl.dll平滑移动示例**
 
 ```Python
@@ -69,8 +69,7 @@ def r_linear_interpolation(r_x,r_y,num_steps,delay):# 相对平滑移动
         time.sleep(delay)
 
 ```
-</br>
-
+<br></br>
 **ghub_device.dll调用示例**
 
 ```Python
@@ -121,8 +120,7 @@ def mouse_xy(x, y, abs_move = False):
     if gmok:
         gm.moveR(int(x), int(y), abs_move)
 ```
-</br>
-
+<br></br>
 **logitech.driver.dll调用示例**
 
 ```Python
@@ -235,8 +233,7 @@ if __name__ == '__main__':  # 测试
         k.join()
 
 ```
-</br>
-
+<br></br>
 **Ghub.dll导出函数**
 
 ```C++
@@ -244,9 +241,10 @@ BOOL INIT() //初始化ghub
 void MoveR(int x, int y) //相對移動
 void FREE() //釋放
 ```
-<br/>
+<br></br>
 
 ### 贝塞尔移动示例
+<br></br>
 **一阶贝塞尔移动**
 ```Python
 import random
@@ -328,7 +326,7 @@ while True:
     # print(pyautogui.position())
     # bezer1.rMove((0,0))
 ```
-
+<br></br>
 **二阶贝塞尔移动示例**
 ```Python
 import time
