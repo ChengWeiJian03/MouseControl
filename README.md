@@ -7,8 +7,8 @@
 ```Python
 driver = ctypes.CDLL(r'.\MouseControl.dll')
 ```
-</br>
-## 文件使用示例
+<br/>
+### 文件使用示例
 
 **MouseControl.dll调用示例**
 
@@ -241,6 +241,7 @@ BOOL INIT() //初始化ghub
 void MoveR(int x, int y) //相對移動
 void FREE() //釋放
 ```
+<br/>
 
 ### 贝塞尔移动示例
 **一阶贝塞尔移动**
