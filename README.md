@@ -1,6 +1,6 @@
 # 鼠标调用说明
 
-### 注：MouseControl无水印，其他有水印
+### 注：MouseControl无水印，其他有水印，MouseControl误差较大，绝对移动误差在20左右，相对移动误差在1-2，不建议使用
 
 **Python使用DLL文件**
 
@@ -8,6 +8,7 @@
 driver = ctypes.CDLL(r'.\MouseControl.dll')
 ```
 </br>
+## 文件使用示例
 
 **MouseControl.dll调用示例**
 
@@ -239,4 +240,135 @@ if __name__ == '__main__':  # 测试
 BOOL INIT() //初始化ghub
 void MoveR(int x, int y) //相對移動
 void FREE() //釋放
+```
+
+### 贝塞尔移动示例
+**一阶贝塞尔移动**
+```
+import random
+import time
+import ctypes
+import matplotlib.pyplot as plt
+import numpy as np
+import pyautogui
+
+class bezer:
+    driver = None
+    points = None
+    B1 = None
+    t = None
+
+    def __init__(self):
+        self.driver = ctypes.CDLL(r'.\MouseControl.dll')
+
+    def sum_decimal_places(self,deff_array, decimal_places=5):
+        # 将数组舍入到指定的小数位数
+        rounded_arr = np.round(deff_array, decimal_places)
+
+        # 提取小数部分
+        decimals = np.modf(rounded_arr)[0]
+
+        # 将小数部分乘以相应的权重，再进行求和
+        weighted_sum = np.round(np.sum(decimals,axis=0))
+
+        return weighted_sum
+
+    def getPoint(self, start, end):
+        self.points = np.array([[start[0], start[1]],[end[0], end[1]]])  # 在此处修改坐标
+        t = np.linspace(0, 1, 100)
+        t = np.array([t, t]).T
+        self.B1 = (1 - t) * self.points[0] + t * self.points[1]
+    def absMove(self,point=(1920,1080),delay=0): #有问题，move_Abs函数写的不行，定位不准
+        start = pyautogui.position()
+        self.getPoint(start, point)
+        for x, y in zip(self.B1[:, 0], self.B1[:, 1]):
+            self.driver.move_Abs(int(x)+4, int(y)+8) # 加了一点定位补偿
+            time.sleep(delay)
+    def eliminatingErrors(self,diff_arr):
+        sum_array = np.round(self.sum_decimal_places(np.abs(diff_arr), 5))
+        max = np.max(sum_array).astype(int)
+        wuchashuzu = np.full((max, 2), 0)
+        if diff_arr[0][0]<0:
+            wuchashuzu[:int(sum_array[0]), 0] = -1 # TODO
+        else:
+            wuchashuzu[:int(sum_array[0]), 0] = 1
+        if diff_arr[0][1]<0:
+            wuchashuzu[:int(sum_array[1]),1] = -1
+        else:
+            wuchashuzu[:int(sum_array[1]),1] = 1
+        return wuchashuzu
+
+    def rMove(self,point,delay=0): # 试过了，相对移动也有误差，误差在1-2之间，每次移动都有，积累起来还是一个很大的值
+        i = 0
+        start = pyautogui.position()
+        self.getPoint(start, point)
+        self.B1 = np.abs(self.B1)
+        diff_arr = np.diff(self.B1,axis=0)
+        error = self.eliminatingErrors(diff_arr)
+        int_arr = diff_arr.astype(int)
+        int_arr = np.concatenate((int_arr,error))
+        for x,y in zip(int_arr[:,0],int_arr[:,1]):
+            i=i+1
+            self.driver.move_R(int(x),int(y))
+
+    def show(self):
+        plt.plot(self.B1[:, 0].astype(int), self.B1[:, 1].astype(int))
+        plt.show()
+
+bezer1 = bezer()
+
+while True:
+    pass
+    # random.randint(1920),random.randint(1080)
+    # bezer1.absMove((320,221),0)
+    # print(pyautogui.position())
+    # bezer1.rMove((0,0))
+```
+
+**二阶贝塞尔移动示例**
+```
+import time
+import ctypes
+import matplotlib.pyplot as plt
+import numpy as np
+import pyautogui
+
+class bezer:
+    driver = None
+    n = None
+    init_t = None
+    P = None
+    points = None
+    def __init__(self):
+        self.driver = ctypes.CDLL(r'.\MouseControl.dll')
+
+    def getB(self,i):
+        t = np.math.factorial(self.n) * self.init_t ** i * (1 - self.init_t) ** (self.n - i) / (
+                    np.math.factorial(i) * np.math.factorial(self.n - i))
+        return np.array([t, t]).T
+    def GetPoint(self,start,end):
+        self.points = np.array([[start[0], start[1]], [960,540], [end[0], end[1]]])  # 在此处修改坐标
+        self.n = self.points.shape[0] - 1
+        self.init_t = np.linspace(0, 1, 1000)
+        self.P = np.zeros((1000, 2))
+        for i in range(self.n + 1):
+            self.P += self.getB(i) * self.points[i]
+    def move(self,start=(0,0),end=(1920,1080),delay=0):
+        self.GetPoint(start,end)
+        i=0
+        for x, y in zip(self.P[:, 0], self.P[:, 1]):
+            i+=1
+            self.driver.move_Abs(int(x), int(y))
+            time.sleep(delay)
+    def show(self):
+        plt.plot(self.P[:, 0].astype(int), self.P[:, 1].astype(int))
+        plt.show()
+
+bezer1 = bezer()
+
+while True:
+    start_x, start_y = pyautogui.position()
+    bezer1.move((start_x,start_y),(430,650),0)
+    time.sleep(1)
+
 ```
