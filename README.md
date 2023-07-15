@@ -1,18 +1,21 @@
 # 鼠标调用说明
+**此为借助dll文件来调用罗技鼠标驱动，以实现驱动级的键鼠调用**
 <br></br>
-**此为借助dll文件来调用罗技鼠标驱动，以实现驱动级的键鼠调用，顺便写了贝塞尔移动，凑合凑合用吧**
+**注：MouseControl无水印，其他有水印**
+
+### 使用说明
+- 在使用前请安装老版的罗技驱动，即项目文件中的罗技驱动，如安装了新版本的罗技驱动，先卸载干净再安装老版驱动
+- 每个文件完成的键鼠移动都会有误差，每个单位移动的误差大概在0.2-0.3左右，积累起来还是挺大的，如想鼠标到达预定位置建议配合pid控制，示例见后文
+- 在使用前必须在鼠标设置里，将提高鼠标精度按钮点掉，处于未选中状态，并且将鼠标灵敏度调到正中间，不然鼠标在移动会有偏移
 <br></br>
-### 注：MouseControl无水印，其他有水印，在使用前必须在鼠标设置里，将提高鼠标精度按钮点掉，处于未选中状态，并且将鼠标灵敏度调到正中间，不然鼠标在移动会有偏移
-<br></br>
-**Python使用DLL文件**
+
+**Python使用DLL文件示例**
 
 ```Python
 driver = ctypes.CDLL(r'.\MouseControl.dll')
 ```
-<br/>
+### DLL文件使用示例
 
-### 文件使用示例
-<br></br>
 **MouseControl.dll调用示例**
 
 ```C++
@@ -31,7 +34,7 @@ driver = ctypes.CDLL(r'.\MouseControl.dll')
  // 右键松开
  click_Right_up();
 ```
-<br></br>
+
 **MouseControl.dll平滑移动示例**
 
 ```Python
@@ -59,7 +62,7 @@ linear_interpolation(x_end, y_end, num_steps=20, delay=0.01)
 ```
 
 ```Python
-def r_linear_interpolation(r_x,r_y,num_steps,delay):# 相对平滑移动
+def r_linear_interpolation(r_x,r_y,num_steps,delay):
     r_y = 0-r_y
     dx = r_x/num_steps
     dy = r_y/num_steps
@@ -67,9 +70,8 @@ def r_linear_interpolation(r_x,r_y,num_steps,delay):# 相对平滑移动
         next_x,next_y = (dx),(dy)
         driver.move_R(int(next_x),int(next_y))
         time.sleep(delay)
-
 ```
-<br></br>
+
 **ghub_device.dll调用示例**
 
 ```Python
@@ -120,7 +122,7 @@ def mouse_xy(x, y, abs_move = False):
     if gmok:
         gm.moveR(int(x), int(y), abs_move)
 ```
-<br></br>
+
 **logitech.driver.dll调用示例**
 
 ```Python
@@ -233,7 +235,7 @@ if __name__ == '__main__':  # 测试
         k.join()
 
 ```
-<br></br>
+
 **Ghub.dll导出函数**
 
 ```C++
@@ -241,4 +243,111 @@ BOOL INIT() //初始化ghub
 void MoveR(int x, int y) //相對移動
 void FREE() //釋放
 ```
-<br></br>
+
+**PID控制鼠标移动**
+```Python
+# Encoding: utf-8
+from simple_pid import PID
+import ctypes
+import pynput
+
+class Logitech:
+
+    class mouse:
+
+        """
+        code: 1:左键, 2:中键, 3:右键
+        """
+
+        @staticmethod
+        def press(code):
+            if not ok:
+                return
+            driver.mouse_down(code)
+
+        @staticmethod
+        def release(code):
+            if not ok:
+                return
+            driver.mouse_up(code)
+
+        @staticmethod
+        def click(code):
+            if not ok:
+                return
+            driver.mouse_down(code)
+            driver.mouse_up(code)
+
+        @staticmethod
+        def scroll(a):
+            """
+            a:没搞明白
+            """
+            if not ok:
+                return
+            driver.scroll(a)
+
+        @staticmethod
+        def move(x, y):
+            """
+            相对移动, 绝对移动需配合 pywin32 的 win32gui 中的 GetCursorPos 计算位置
+            pip install pywin32 -i https://pypi.tuna.tsinghua.edu.cn/simple
+            x: 水平移动的方向和距离, 正数向右, 负数向左
+            y: 垂直移动的方向和距离
+            """
+            if not ok:
+                return
+            if x == 0 and y == 0:
+                return
+            driver.moveR(x, y, False)
+
+    class keyboard:
+
+        """
+        键盘按键函数中，传入的参数采用的是键盘按键对应的键码
+        code: 'a'-'z':A键-Z键, '0'-'9':0-9
+        """
+
+        @staticmethod
+        def press(code):
+
+            if not ok:
+                return
+            driver.key_down(code)
+
+        @staticmethod
+        def release(code):
+            if not ok:
+                return
+            driver.key_up(code)
+
+        @staticmethod
+        def click(code):
+            if not ok:
+                return
+            driver.key_down(code)
+            driver.key_up(code)
+
+# 鼠标移动
+def mouse_move(target_x,target_y):
+    while True:
+        if abs(target_x - mouse.position[0])<3 and abs(target_y - mouse.position[1])<3:
+            break
+        pid_x = PID(0.25, 0.01, 0.01, setpoint=target_x)
+        pid_y = PID(0.25, 0.01, 0.01, setpoint=target_y)
+        next_x = pid_x(mouse.position[0])
+        next_y = pid_y(mouse.position[1])
+        print(f"next_y={int(round(next_y))}")
+        Logitech.mouse.move(int(round(next_x)), int(round(next_y)))
+        print(mouse.position)
+
+# 载入驱动
+driver = ctypes.CDLL(f'./logitech.driver.dll')
+ok = driver.device_open() == 1
+mouse = pynput.mouse.Controller() # pynput效率应该是比pyautogui高点
+
+if __name__ == '__main__':
+    mouse_move(800,900)
+    # print(pyautogui.position()) # 这里摆个这个pyautogui.position()，是因为pynput好像是有点玄学bug，目标y值超过900鼠标就会挪不过去，但此时只要用一下pyautogui.position()，问题就解决了
+
+```
