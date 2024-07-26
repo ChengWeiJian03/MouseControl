@@ -9,6 +9,8 @@
 - 使用前设置：在使用前必须在鼠标设置里，将提高鼠标精度按钮点掉，处于未选中状态，并且将鼠标灵敏度调到正中间，不然鼠标在移动会有偏移
   
 - 使用：每个文件完成的键鼠移动都会有误差，每个单位移动的误差大概在0.2-0.3左右，积累起来还是挺大的，如想鼠标到达预定位置建议配合pid控制，示例见文尾
+
+- 芜湖~写了个LADRC控制鼠标移动,虽然不好用,但勉强用用.也在文尾,我甚至贴心的给了可视化调参
 <br></br>
 
 **Python使用DLL文件示例**
@@ -269,5 +271,155 @@ if __name__ == '__main__':
     while 1:
         mouse_move(driver,800,900)
         error = pyautogui.position() # 这里摆个这个pyautogui.position()，是因为pynput好像是有点玄学bug，目标y值超过900鼠标就会挪不过去，但此时只要用一下pyautogui.position()，问题就解决了
+
+```
+
+**LADRC控制鼠标移动**
+```Python
+import streamlit as st
+import matplotlib.pyplot as plt
+import numpy as np
+from functools import partial
+from math import factorial
+import pyautogui
+import time
+
+from matplotlib import rcParams
+
+
+class LADRC:
+    def __init__(self,
+                 ordenProceso: int,
+                 gananciaNominal: float,
+                 anchoBandaControlador: float,
+                 anchoBandaLESO: float,
+                 condicionInicial: int
+                 ) -> None:
+        self.u = 0
+        self.h = 0.001
+
+        self.nx = int(ordenProceso)
+        self.bo = gananciaNominal
+        self.wc = anchoBandaControlador
+        self.wo = anchoBandaLESO
+        self.zo = condicionInicial
+
+        self.Cg, self.Ac, self.Bc, self.Cc, self.zo, self.L, self.K, self.z = self.ConstruirMatrices()
+
+    def ConstruirMatrices(self) -> tuple:
+        n = self.nx + 1
+
+        K = np.zeros([1, self.nx])
+        for i in range(self.nx):
+            K[0, i] = pow(self.wc, n - (i + 1)) * (
+                    (factorial(self.nx)) / (factorial((i + 1) - 1) * factorial(n - (i + 1))))
+
+        L = np.zeros([n, 1])
+        for i in range(n):
+            L[i] = pow(self.wo, i + 1) * (
+                    (factorial(n)) / (factorial(i + 1) * factorial(n - (i + 1))))
+
+        Cg = self.bo
+
+        Ac = np.vstack((np.hstack((np.zeros([n - 1, 1]), np.identity(n - 1))), np.zeros([1, n])))
+        Bc = np.vstack((np.zeros([self.nx - 1, 1]), self.bo, 0))
+        Cc = np.hstack(([[1]], np.zeros([1, n - 1])))
+        zo = np.vstack(([[self.zo]], np.zeros([n - 1, 1])))
+        z = np.zeros([n, 1])
+
+        return Cg, Ac, Bc, Cc, zo, L, K, z
+
+    def LESO(self, u, y, z) -> np.ndarray:
+        return np.matmul(self.Ac, z) + self.Bc * u + self.L * (y - np.matmul(self.Cc, z))
+
+    def Runkut4(self, F, z, h):
+        k0 = h * F(z)
+        k1 = h * F(z + 0.5 * k0)
+        k2 = h * F(z + 0.5 * k1)
+        k3 = h * F(z + k2)
+        return z + (1 / 6) * (k0 + 2 * k1 + 2 * k2 + k3)
+
+    def SalidaControl(self, r: int, y: int):
+        leso = partial(self.LESO, self.u, y)
+        self.z = self.Runkut4(leso, self.z, self.h)
+        u0 = self.K[0, 0] * (r - self.z[0, 0])
+        for i in range(self.nx - 1):
+            u0 -= self.K[0, i + 1] * self.z[i + 1, 0]
+
+        return (u0 - self.z[self.nx, 0]) * self.Cg
+
+
+def control_movimiento_raton(x_objetivo, y_objetivo, wc, wo, bo):
+    controlador = LADRC(ordenProceso=2, gananciaNominal=bo, anchoBandaControlador=wc, anchoBandaLESO=wo,
+                        condicionInicial=0)
+    trajectory = []
+    move_attempts = 0
+    max_attempts = 50
+
+    while move_attempts < max_attempts:
+        x_actual, y_actual = pyautogui.position()
+        trajectory.append((x_actual, y_actual))
+        error_x = x_objetivo - x_actual
+        error_y = y_objetivo - y_actual
+
+        if abs(error_x) < 5 and abs(error_y) < 5:
+            st.write("移动成功")
+            break
+
+        u_x = controlador.SalidaControl(error_x, x_actual)
+        u_y = controlador.SalidaControl(error_y, y_actual)
+
+        # Debug outputs
+        # st.write(f"Attempt: {move_attempts}")
+        # st.write(f"Current Position: ({x_actual}, {y_actual})")
+        # st.write(f"Control Output: ({u_x}, {u_y})")
+        # st.write(f"Errors: ({error_x}, {error_y})")
+
+        pyautogui.moveRel(int(u_x), int(u_y))
+        time.sleep(0.01)
+        move_attempts += 1
+
+    # Final check for success
+    x_final, y_final = pyautogui.position()
+    if abs(x_final - x_objetivo) < 5 and abs(y_final - y_objetivo) < 5:
+        st.write("移动成功")
+    else:
+        st.write("移动失败")
+
+    return trajectory
+
+
+# Streamlit 代码
+st.title("LADRC 控制鼠标移动调参")
+
+x_target = st.slider("目标位置 X", 0, 1920, 500)
+y_target = st.slider("目标位置 Y", 0, 1080, 500)
+wc = st.slider("控制器带宽 (wc)", 0.1, 5.0, 1.0)
+wo = st.slider("LESO 带宽 (wo)", 0.1, 5.0, 1.0)
+bo = st.slider("增益 (bo)", 0.1, 2.0, 0.7)
+
+if st.button("开始控制"):
+    trajectory = control_movimiento_raton(x_target, y_target, wc, wo, bo)
+
+    # 绘制鼠标移动轨迹
+    x_values = [point[0] for point in trajectory]
+    y_values = [point[1] for point in trajectory]
+    rcParams['font.family'] = ['SimHei'] 
+    rcParams['axes.unicode_minus'] = False 
+
+    plt.figure(figsize=(10, 6))
+
+    plt.scatter(x_values[0], y_values[0], color='g', label='起点')
+    plt.scatter(x_values[-1], y_values[-1], color='r', label='终点')
+    plt.scatter(x_target, y_target, color='purple', label='目标点')
+    plt.plot(x_values, y_values, marker='o', linestyle='-', color='b')
+    plt.xlim(0, 1920)
+    plt.ylim(0, 1080)
+    plt.gca().invert_yaxis()
+    plt.xlabel('X Position')
+    plt.ylabel('Y Position')
+    plt.title('Mouse Movement Trajectory')
+    plt.legend()
+    st.pyplot(plt)
 
 ```
